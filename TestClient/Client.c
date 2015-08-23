@@ -4,7 +4,7 @@
 #include<Windows.h>
 #include<process.h>
 
-#define BUF_SIZE 100
+#define BUF_SIZE 1024
 
 void ErrorHandling(char* message);
 
@@ -13,58 +13,56 @@ int main(int argc, char* argv[]) {
 	WSADATA wsaData;
 	SOCKET hSocket;
 	SOCKADDR_IN servAdr;
-
 	char message[BUF_SIZE];
-	int strLen;
+	int strLen, readLen;
 
 	if (argc != 3) {
-		printf("Usage : %s <ip> <port>\n", argv[0]);
+		printf("Usage: %s <ip> <port>", argv[0]);
 		getchar();
 		exit(1);
 	}
 
-	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-		ErrorHandling("WSAStartup() error!");
-	}
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+		ErrorHandling("WSAStartup error");
 
-	// 소켓 생성
 	hSocket = socket(PF_INET, SOCK_STREAM, 0);
-	if (hSocket == INVALID_SOCKET) {
-		ErrorHandling("socket() error!");
-	}
+	if (hSocket == INVALID_SOCKET)
+		ErrorHandling("socket error");
 
-	// 메모리 설정후 셋팅
 	memset(&servAdr, 0, sizeof(servAdr));
 	servAdr.sin_family = AF_INET;
 	servAdr.sin_addr.s_addr = inet_addr(argv[1]);
 	servAdr.sin_port = htons(atoi(argv[2]));
 
-	// 서버 소켓에 연결
-	if (connect(hSocket, (SOCKADDR*)&servAdr, sizeof(servAdr)) == SOCKET_ERROR) {
-		ErrorHandling("connect() error!");
-	}
+	if (connect(hSocket, (SOCKADDR*)&servAdr, sizeof(servAdr)) == SOCKET_ERROR)
+		ErrorHandling("connect error");
 	else
-		puts("Connect........");
+		puts("Connected......");
 
-	while (1)
-	{
-		fputs("Input message(Q to quit) : ", stdout);
+	while (1) {
+		fputs("Input message(Q to quit): ", stdout);
 		fgets(message, BUF_SIZE, stdin);
-
-		if (!strcmp(message, "q\n") || !strcmp(message, "Q\n"))
+		if (!strcmp(message, "q\n") || !strcmp(message, "Q\n")) {
 			break;
+		}
 
+		strLen = strlen(message);
+		send(hSocket, message, strLen, 0);
+		readLen = 0;
 
-		send(hSocket, message, strlen(message), 0);
-		strLen = recv(hSocket, message, BUF_SIZE - 1, 0);
+		while (1) {
+			readLen = recv(hSocket, &message[readLen], BUF_SIZE - 1, 0);
+			if (readLen >= strLen)
+				break;
+		}
+
 		message[strLen] = 0;
 		printf("Message from server: %s", message);
 	}
 
-	// 소켓 종료
 	closesocket(hSocket);
 	WSACleanup();
-
+	return 0;
 
 	printf("종료하시려면 아무키나 눌러주세요.");
 	getchar();
@@ -74,5 +72,6 @@ int main(int argc, char* argv[]) {
 void ErrorHandling(char* message) {
 	fputs(message, stderr);
 	fputc('\n', stderr);
+	getchar();
 	exit(1);
 }
